@@ -1,10 +1,20 @@
 import sys
 import time
+import random
 import argparse
 sys.path.append("home/herilalaina/Documents/Code/prefecture/")
 
 from splinter import Browser
 
+
+def reload(_browser):
+    page_ok = ("naturalisation" in _browser.html.lower())
+    c = 0
+
+    while (not page_ok) and (c < 10):
+        _browser.reload()
+        page_ok = ("naturalisation" in _browser.html.lower())
+        c += 1
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='RDV Prefecture')
@@ -27,31 +37,36 @@ if __name__=="__main__":
         raise Exception("Error type RDV.")
 
     found = False
-    browser = Browser()
+    browser = Browser(timeout=130)
 
     while not found:
-        time.sleep(2)
         try:
             browser.visit(url)
             browser.find_by_name("condition").click()
             browser.find_by_name("nextButton").click()
+            reload(browser)
 
 
             while not found:
+                random.shuffle(porte_list)
                 for id in porte_list:
+                    time.sleep(40)
                     browser.find_by_id(id).click()
+                    reload(browser)
 
                     try:
                         browser.find_by_name("nextButton").click()
                         if browser.is_text_present('Description de la nature du rendez-vous'):
                             browser.find_by_name("nextButton").click()
                             found = True
+                            browser.find_by_name("nextButton").click()
                             break
                     except:
                         pass
                     browser.back()
         except:
             browser.cookies.delete()
+            time.sleep(60)
 
 
     # Notification ici
