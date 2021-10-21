@@ -1,22 +1,39 @@
-import sys
+import sys, os
 import time
 import random
 import argparse
-sys.path.append("home/herilalaina/Documents/Code/prefecture/")
+from selenium import webdriver
+from twilio.rest import Client
+from http_request_randomizer.requests.proxy.requestProxy import RequestProxy
 
-from splinter import Browser
+# req_proxy = RequestProxy()  # you may get different number of proxy when  you run this at each time
+# proxies = req_proxy.get_proxy_list()  # this will create proxy list
+
+sys.path.append(os.sep.join([os.environ.get("ROOT_APP_PREFECTURE")]))
+
+
+def send_notification():
+    account_sid = ''
+    auth_token = ''
+    client = Client(account_sid, auth_token)
+    message = client.messages.create(
+        from_='whatsapp:+14155238886',
+        body='RDV FOUND',
+        to='whatsapp:+0000000'
+    )
+    print(message.sid)
 
 
 def reload(_browser):
-    page_ok = ("naturalisation" in _browser.html.lower())
+    page_ok = ("naturalisation" in _browser.find_element_by_tag_name('html').text.lower())
     c = 0
-
     while (not page_ok) and (c < 10):
-        _browser.reload()
-        page_ok = ("naturalisation" in _browser.html.lower())
+        _browser.refresh()
+        page_ok = ("naturalisation" in _browser.find_element_by_tag_name('html').text.lower())
         c += 1
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='RDV Prefecture')
     parser.add_argument(
         '--type', '-t',
@@ -27,6 +44,8 @@ if __name__=="__main__":
     )
     args = parser.parse_args()
 
+    browser = webdriver.Firefox()
+    found = False
     if args.type == "NAT":
         url = 'http://www.essonne.gouv.fr/booking/create/23014/'
         porte_list = ["planning23018", "planning23198", "planning23199", "planning23200", "planning23201"]
@@ -36,38 +55,33 @@ if __name__=="__main__":
     else:
         raise Exception("Error type RDV.")
 
-    found = False
-    browser = Browser(timeout=130)
-
     while not found:
         try:
-            browser.visit(url)
-            browser.find_by_name("condition").click()
-            browser.find_by_name("nextButton").click()
+            browser.get(url)
+            browser.find_element_by_id("condition").click()
+            element = browser.find_element_by_name("nextButton")
+            browser.execute_script("arguments[0].click();", element)
             reload(browser)
-
-
             while not found:
                 random.shuffle(porte_list)
                 for id in porte_list:
-                    time.sleep(40)
-                    browser.find_by_id(id).click()
+                    time.sleep(4)
+                    browser.find_element_by_id(id).click()
                     reload(browser)
-
                     try:
-                        browser.find_by_name("nextButton").click()
-                        if browser.is_text_present('Description de la nature du rendez-vous'):
-                            browser.find_by_name("nextButton").click()
+                        browser.find_element_by_name("nextButton").click()
+                        if browser.find_element_by_id("inner_Booking").find_element_by_tag_name(
+                                "h2").text == 'Description de la nature du rendez-vous':
+                            browser.find_element_by_name("nextButton").click()
                             found = True
-                            browser.find_by_name("nextButton").click()
+                            browser.find_element_by_name("nextButton").click()
                             break
                     except:
                         pass
                     browser.back()
         except:
-            browser.cookies.delete()
+            browser.delete_all_cookies()
             time.sleep(60)
 
-
     # Notification ici
-    print("Found RDVVV")
+    send_notification()
